@@ -74,28 +74,41 @@ const download = document.getElementById("download");
 let originalImage = null;
 
 photo.addEventListener("change", function(event) {
+
+photo.addEventListener("change", function(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
-    alert("Please select an image.");
+    alert("Please select a valid image.");
     return;
   }
 
   const img = new Image();
+
   img.onload = function() {
     originalImage = img;
+
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
     makeOutline();
     download.disabled = false;
+
     URL.revokeObjectURL(img.src);
   };
+
+  img.onerror = function() {
+    alert("Image could not be loaded. Please try another photo.");
+    URL.revokeObjectURL(img.src);
+  };
+
   img.src = URL.createObjectURL(file);
 });
-
-strength.addEventListener("input", function() {
-  strengthValue.textContent = strength.value;
-  if (originalImage) makeOutline();
-});
+  
 
 function makeOutline() {
   const maxSize = 1000;
