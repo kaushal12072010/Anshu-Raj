@@ -1,1 +1,178 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photo to Outline</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;padding:20px;
+  font-family:Arial,sans-serif;
+  background:#f3f5fa;color:#202638;
+}
+.container{
+  max-width:600px;margin:auto;
+  background:white;padding:22px;
+  border-radius:18px;
+  box-shadow:0 4px 18px #0001;
+}
+h1{text-align:center;color:#5545ce}
+p{text-align:center;color:#667085}
+.upload{
+  display:block;text-align:center;
+  padding:18px;margin:20px 0;
+  border:2px dashed #7768e8;
+  border-radius:12px;color:#5545ce;
+}
+input[type=file]{width:100%;margin-top:12px}
+label{display:block;margin-top:20px;font-weight:bold}
+input[type=range]{width:100%;margin-top:12px}
+canvas{
+  display:block;width:100%;height:auto;
+  margin-top:20px;border-radius:10px;
+  background:#eee;
+}
+button{
+  width:100%;padding:14px;margin-top:14px;
+  border:0;border-radius:10px;
+  background:#5545ce;color:white;
+  font-size:16px;font-weight:bold;
+}
+button:disabled{opacity:.45}
+.note{text-align:center;font-size:13px;color:#777}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>✨ Photo to Outline</h1>
+  <p>Turn your photos into beautiful line drawings.</p>
+
+  <div class="upload">
+    <b>Choose a photo from your phone</b>
+    <input id="photo" type="file" accept="image/*">
+  </div>
+
+  <label>Outline strength: <span id="strengthValue">90</span></label>
+  <input id="strength" type="range" min="20" max="180" value="90">
+
+  <canvas id="canvas"></canvas>
+
+  <button id="download" disabled>Download Outline PNG</button>
+  <p class="note">Your photo is processed on your device.</p>
+</div>
+
+<script>
+const photo = document.getElementById("photo");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const strength = document.getElementById("strength");
+const strengthValue = document.getElementById("strengthValue");
+const download = document.getElementById("download");
+
+let originalImage = null;
+
+photo.addEventListener("change", function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image.");
+    return;
+  }
+
+  const img = new Image();
+  img.onload = function() {
+    originalImage = img;
+    makeOutline();
+    download.disabled = false;
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+});
+
+strength.addEventListener("input", function() {
+  strengthValue.textContent = strength.value;
+  if (originalImage) makeOutline();
+});
+
+function makeOutline() {
+  const maxSize = 1000;
+  let w = originalImage.naturalWidth;
+  let h = originalImage.naturalHeight;
+  const scale = Math.min(1, maxSize / Math.max(w,h));
+  w = Math.max(1, Math.round(w * scale));
+  h = Math.max(1, Math.round(h * scale));
+
+  canvas.width = w;
+  canvas.height = h;
+  ctx.drawImage(originalImage, 0, 0, w, h);
+
+  const image = ctx.getImageData(0,0,w,h);
+  const data = image.data;
+  const gray = new Float32Array(w*h);
+
+  for(let i=0,j=0;i<data.length;i+=4,j++){
+    gray[j] = 0.299*data[i] +
+              0.587*data[i+1] +
+              0.114*data[i+2];
+  }
+
+  const output = ctx.createImageData(w,h);
+  const out = output.data;
+  const threshold = Number(strength.value);
+
+  for(let y=1;y<h-1;y++){
+    for(let x=1;x<w-1;x++){
+      const i=y*w+x;
+
+      const gx =
+        -gray[i-w-1] + gray[i-w+1]
+        -2*gray[i-1] + 2*gray[i+1]
+        -gray[i+w-1] + gray[i+w+1];
+
+      const gy =
+        -gray[i-w-1] -2*gray[i-w] -gray[i-w+1]
+        +gray[i+w-1] +2*gray[i+w] +gray[i+w+1];
+
+      const edge = Math.sqrt(gx*gx + gy*gy);
+      const value = edge > threshold ? 0 : 255;
+      const p=i*4;
+
+      out[p]=value;
+      out[p+1]=value;
+      out[p+2]=value;
+      out[p+3]=255;
+    }
+  }
+
+  for(let x=0;x<w;x++){
+    for(const y of [0,h-1]){
+      const p=(y*w+x)*4;
+      out[p]=out[p+1]=out[p+2]=255;
+      out[p+3]=255;
+    }
+  }
+  for(let y=0;y<h;y++){
+    for(const x of [0,w-1]){
+      const p=(y*w+x)*4;
+      out[p]=out[p+1]=out[p+2]=255;
+      out[p+3]=255;
+    }
+  }
+
+  ctx.putImageData(output,0,0);
+}
+
+download.addEventListener("click",function(){
+  if(!originalImage)return;
+  const link=document.createElement("a");
+  link.download="my-outline.png";
+  link.href=canvas.toDataURL("image/png");
+  link.click();
+});
+</script>
+</body>
+</html>
+
