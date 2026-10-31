@@ -74,39 +74,34 @@ const download = document.getElementById("download");
 let originalImage = null;
 
 
+
 photo.addEventListener("change", function(event) {
   const file = event.target.files[0];
   if (!file) return;
 
   if (!file.type.startsWith("image/")) {
-    alert("Please select a valid image.");
+    alert("Please select an image file.");
     return;
   }
 
   const img = new Image();
+  const imageURL = URL.createObjectURL(file);
 
   img.onload = function() {
     originalImage = img;
-
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
-
     makeOutline();
     download.disabled = false;
-
-    URL.revokeObjectURL(img.src);
+    URL.revokeObjectURL(imageURL);
   };
 
   img.onerror = function() {
-    alert("Image could not be loaded. Please try another photo.");
-    URL.revokeObjectURL(img.src);
+    alert("Unable to load this photo. Try another image.");
+    URL.revokeObjectURL(imageURL);
   };
 
-  img.src = URL.createObjectURL(file);
+  img.src = imageURL;
 });
+  
   
 
 function makeOutline() {
